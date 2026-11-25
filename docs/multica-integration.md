@@ -50,7 +50,3 @@ curl --no-buffer "http://127.0.0.1:4747/api/multica/workspaces/$WORKSPACE_ID/eve
 ```
 
 A working subscription emits `connecting` then `live` with the selected workspace, projects, issues, agents and runs. This slice is available through the API. The source selector and NPCs arrive in slice 2. The [server reference](../server/README.md#multica) describes access rules and failure states.
-
-### Live check on this branch
-
-An isolated instance of the built server discovered three workspaces with the installed CLI login. Subscribing to the test workspace produced `connecting` followed by `live`. The frame contained four projects, four issues, three unarchived agents and seven runs. Three run records included a provider and a native session ID. A request from an unrelated browser origin returned HTTP 403. The check used read-only requests and made no issue or assignment changes. Counts are observations from the pilot, not fixtures or acceptance thresholds.
