@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { OfficeStore } from '../net/store';
+import { LocalOffice as OfficeStore } from '../net/local-office';
 import type { WorldApi, WorldPlayback } from '../world/api';
 import { createUI } from './index';
 import { SoundControl } from './sound';

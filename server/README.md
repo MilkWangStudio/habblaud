@@ -316,7 +316,7 @@ Regras:
 
 ## Multica
 
-No processo local com escuta em loopback e fora do modo demo, o servidor atende duas rotas de leitura.
+No processo local com escuta em loopback e fora do modo demo, o servidor atende as seguintes rotas de leitura.
 O login vem de `~/.multica/config.json` ou do caminho em `MULTICA_CONFIG`. O token fica no servidor.
 
 | Rota GET | Resposta |
@@ -328,7 +328,10 @@ O primeiro quadro é `connecting` ou o estado atual de uma assinatura compartilh
 `stale`. Credenciais inválidas ou perda de acesso produzem `unavailable`. Ambos substituem os dados anteriores.
 O servidor refaz a leitura após a autenticação do WebSocket, ao receber mudanças e a cada cinco minutos.
 A última aba a sair encerra a assinatura. As rotas ficam fora do Docker, da porta remota e do Habblaud World.
-O [plano de integração](../docs/multica-integration.md) cobre a interface e o teste com sessões locais.
+O hook local envia os identificadores de sessão, executor, workspace e agente em `POST /api/multica/session`.
+O servidor aceita a rota apenas de processos locais e mantém associações limitadas em memória. A interface mostra
+apenas agentes visíveis na assinatura autenticada. `HABBLAUD_MULTICA_WEB_ORIGIN` configura a origem dos links para
+instalações com API e frontend separados. Veja o [guia de uso](../docs/multica-integration.md#use-the-office).
 
 ## Codex
 

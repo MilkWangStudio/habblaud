@@ -208,6 +208,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, stdin
     } catch {
       return undefined;
     }
+    if (env.MULTICA_WORKSPACE_ID && env.MULTICA_AGENT_ID && typeof input?.session_id === 'string' &&
+        ['SessionStart', 'PermissionRequest'].includes(input.hook_event_name)) {
+      await call('http://127.0.0.1:' + opts.port, 'POST', '/api/multica/session', {
+        workspace: env.MULTICA_WORKSPACE_ID, agentId: env.MULTICA_AGENT_ID, provider: 'claude', id: input.session_id,
+      }, 400);
+    }
     if (!input || typeof input !== 'object' || typeof input.session_id !== 'string' || typeof input.tool_name !== 'string') return undefined;
     if (input.hook_event_name !== undefined && input.hook_event_name !== 'PermissionRequest') return undefined;
 

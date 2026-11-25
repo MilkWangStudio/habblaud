@@ -216,6 +216,11 @@ export async function run(env = process.env, stdinText) {
     const codexHome = codexHomeOf(env, input);
     const account = accountOf(codexHome);
     const base = `http://127.0.0.1:${cfg.port}`;
+    if (env.MULTICA_WORKSPACE_ID && env.MULTICA_AGENT_ID && ['SessionStart', 'UserPromptSubmit', 'PermissionRequest'].includes(event)) {
+      await call(base, 'POST', '/api/multica/session', {
+        workspace: env.MULTICA_WORKSPACE_ID, agentId: env.MULTICA_AGENT_ID, provider: 'codex', id: input.session_id,
+      }, 400);
+    }
     const sent = await call(base, 'POST', '/api/codex/events', eventBody(input, account, codexHome), event === 'SessionEnd' ? SESSION_END_TIMEOUT_MS : EVENT_TIMEOUT_MS);
     debug(`${event}: ${sent ? `${sent.status} ${JSON.stringify(sent.json ?? null)}` : 'Habblaud fora do ar'}`);
     if (event !== 'PermissionRequest' || typeof input.tool_name !== 'string' || !input.tool_name) return undefined;

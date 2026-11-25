@@ -187,6 +187,8 @@ const DONE: Record<PermissionDecision['behavior'], string> = { allow: tr('Aprova
  * pedido é respondido (por aqui ou no terminal), expira ou o agente sai.
  */
 export class PermissionCard {
+  private readonly events = new AbortController();
+  dispose() { this.events.abort(); this.el.remove(); }
   readonly el: HTMLElement;
   private id = '';
   private agentId = '';
@@ -307,7 +309,7 @@ export class PermissionCard {
     ctx.root.addEventListener(PERMISSION_FOCUS_EVENT, (e) => {
       this.pendingFocus = (e as CustomEvent<string>).detail;
       ctx.invalidate();
-    });
+    }, { signal: this.events.signal });
   }
 
   /** O cartão está à mostra (há pedido para este agente). */

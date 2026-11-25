@@ -1,9 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { MulticaError, readCredentials, readWorkspace, type Credentials, type WorkspaceFacts } from './client';
+import { MulticaError, readCredentials, readWorkspace, type Credentials } from './client';
 
-export type Frame =
-  | { state: 'live'; facts: WorkspaceFacts }
-  | { state: 'connecting' | 'stale' | 'unavailable'; reason?: string };
+import type { MulticaFrame, SessionBinding } from '../../../shared/multica';
+export type Frame = MulticaFrame;
 
 type Listener = (frame: Frame) => void;
 const sameLogin = (a: Credentials, b: Credentials) => a.origin === b.origin && a.token === b.token;
@@ -11,9 +10,13 @@ const sameLogin = (a: Credentials, b: Credentials) => a.origin === b.origin && a
 export class WorkspaceStream {
   private readonly stop = new AbortController();
   private readonly listeners = new Set<Listener>();
+  private raw: Frame = { state: 'connecting' };
   private frame: Frame = { state: 'connecting' };
 
-  constructor(private readonly workspace: string) {}
+  constructor(private readonly workspace: string, private readonly bindings?: () => SessionBinding[]) {}
+  refreshBindings() {
+    if (this.raw.state === 'live') this.publish(this.raw);
+  }
   subscribe(listener: Listener) {
     this.listeners.add(listener);
     listener(this.frame);
@@ -23,6 +26,13 @@ export class WorkspaceStream {
   close() { this.stop.abort(); }
   private publish(frame: Frame) {
     if (this.stop.signal.aborted) return;
+    this.raw = frame;
+    if (frame.state === 'live' && this.bindings) {
+      const agents = new Set(frame.facts.agents.map(a => a.id));
+      const bindings = [...frame.facts.bindings ?? [], ...this.bindings()].filter(b => agents.has(b.agentId));
+      const unique = new Map(bindings.map(b => [[b.provider, b.id, b.agentId].join('/'), b]));
+      frame = { state: 'live', facts: { ...frame.facts, bindings: [...unique.values()] } };
+    }
     this.frame = frame;
     for (const fn of this.listeners) fn(frame);
   }

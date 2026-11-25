@@ -1014,7 +1014,7 @@ das contas (letra, e-mail, organização) são lidos no host pelo `docker:up` e 
 
 ## Desenvolvimento
 
-Este fork está adicionando escritórios opcionais do Multica. A primeira etapa oferece uma API local somente de leitura. Consulte o [plano e o teste ao vivo](docs/multica-integration.md).
+Este fork mostra espaços Multica junto do Codex e do Claude Code. Abra **Configurações → Fontes do escritório → Buscar espaços do Multica**. [Configuração e avisos](docs/multica-integration.md#use-the-office).
 
 | Comando | O que faz |
 | --- | --- |

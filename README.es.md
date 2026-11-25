@@ -1060,7 +1060,7 @@ los pasa al contenedor.
 
 ## Desarrollo
 
-Este fork incorpora oficinas opcionales de Multica. La primera etapa ofrece una API local de solo lectura. Consulta el [plan y la prueba en vivo](docs/multica-integration.md).
+Este fork muestra espacios de Multica junto a Codex y Claude Code. Abre **Configuración → Fuentes de la oficina → Buscar espacios de Multica**. [Configuración y avisos](docs/multica-integration.md#use-the-office).
 
 | Comando | Qué hace |
 | --- | --- |

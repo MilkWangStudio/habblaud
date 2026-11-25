@@ -391,7 +391,7 @@ export class Sidebar implements UiComponent {
     r.head.dataset.room = n.agent.roomId;
     const router = this.ctx.terminals;
     const a = n.agent;
-    const canTerm = !!router?.available && a.status !== 'offline';
+    const canTerm = !this.ctx.store.managed.has(a.id) && !!router?.available && a.status !== 'offline';
     setHidden(r.term, !canTerm);
     if (canTerm && router) {
       const open = router.openAgentId === a.id;

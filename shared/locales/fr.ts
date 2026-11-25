@@ -2,6 +2,18 @@
 // As lacunas {0}, {1}... (e as nomeadas, como {sala}) precisam aparecer na tradução, em qualquer ordem.
 // Chave ausente = o texto fica em PT. `npm run i18n:check` lista os textos sem tradução e as chaves que sobraram.
 export const FR: Readonly<Record<string, string>> = {
+  "Todos os espaços": "Tous les espaces",
+  "Área comum": "Espace commun",
+  "Sua revisão": "Votre relecture",
+  "Sua revisão: {0}": "À relire : {0}",
+  "Atribuído a você: {0}": "Vous est attribué : {0}",
+  "Espaços e decisões pendentes": "Espaces et décisions en attente",
+  "Verifique o login do Multica e tente novamente.": "Vérifiez votre connexion à Multica et réessayez.",
+  "Acesso indisponível": "Accès indisponible",
+  "Fontes do escritório": "Sources du bureau",
+  "Buscar espaços do Multica": "Rechercher les espaces Multica",
+  "Sem tarefas neste espaço.": "Aucune tâche dans cet espace.",
+  "Atribuído a você": "Vous est attribué",
   // client/src/main.ts
   "Escritório virtual em pixel art que mostra, em tempo real, o que seus agentes do Claude Code estão fazendo.": "Bureau virtuel en pixel art qui montre, en temps réel, ce que font vos agents Claude Code.",
 

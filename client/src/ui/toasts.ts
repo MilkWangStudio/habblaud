@@ -40,7 +40,7 @@ export class Toasts implements UiComponent {
       const acc = this.ctx.agent(n.agentId)?.account;
       if (acc && this.ctx.prefs.hiddenAccounts.includes(acc)) return;
     }
-    const key = `${n.level}|${n.agentId ?? ''}|${n.text}`;
+    const key = n.review ? n.id : `${n.level}|${n.agentId ?? ''}|${n.text}`;
     const dup = this.toasts.find((t) => t.key === key && n.at - t.notice.at < DEDUPE_MS);
     if (dup) {
       dup.repeats++;
@@ -69,6 +69,7 @@ export class Toasts implements UiComponent {
   /** Alertas somem quando o agente deixa de esperar (ou sai do escritório). */
   render(): void {
     for (const t of [...this.toasts]) {
+      if (t.notice.review && !this.ctx.store.reviewTarget(t.notice.review)) { this.dismiss(t); continue; }
       if (t.notice.level !== 'alert' || !t.notice.agentId) continue;
       const a = this.ctx.agent(t.notice.agentId);
       if (!a || a.status !== 'waiting') this.dismiss(t);
@@ -88,6 +89,11 @@ export class Toasts implements UiComponent {
       count,
     );
     body.addEventListener('click', () => {
+      if (n.review) {
+        const url = this.ctx.store.reviewTarget(n.review);
+        if (url) window.open(url, '_blank', 'noopener');
+        return;
+      }
       if (n.agentId && this.ctx.agent(n.agentId)) this.ctx.select({ type: 'agent', id: n.agentId }, { focus: true });
       else if (n.roomId && this.ctx.store.room(n.roomId)) this.ctx.select({ type: 'room', id: n.roomId }, { focus: true });
     });

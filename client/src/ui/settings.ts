@@ -1,3 +1,4 @@
+import { SourceSettings } from './multica';
 // Configurações (popover): opções do escritório, avisos, modo demonstração e Sobre (versão). O Habblaud World tem a
 // janela própria (ui/world/world-dialog.ts); daqui só sai a dica do tema em Aparência, que também vai para o prédio.
 import { access, remoteLogout } from '../net/access';
@@ -96,6 +97,7 @@ export class SettingsPopover implements UiComponent {
   private remoteGroup: HTMLElement;
   private logoutBtn: HTMLButtonElement;
   private about: AboutGroup;
+  private sources: SourceSettings;
   private demoBusy = false;
   private anchor: HTMLElement | null = null;
 
@@ -163,6 +165,7 @@ export class SettingsPopover implements UiComponent {
       h('span', { class: 'ui-set__hint', text: tr('Os textos das atividades vêm do servidor: seguem HABBLAUD_LANG ou o idioma do sistema onde o Habblaud roda (o inglês, só com HABBLAUD_LANG=en).') }),
     );
 
+    this.sources = new SourceSettings(ctx);
     this.demoGroup = h(
       'div',
       { class: 'ui-set-group' },
@@ -214,6 +217,7 @@ export class SettingsPopover implements UiComponent {
       ),
       this.soundGroup.el,
       h('div', { class: 'ui-set-group' }, h('h3', { text: tr('Idioma') }), this.language.row),
+      this.sources.el,
       this.demoGroup,
       this.remoteGroup,
       this.about.el,
@@ -275,6 +279,7 @@ export class SettingsPopover implements UiComponent {
   }
 
   render(): void {
+    this.sources.render();
     const p = this.ctx.prefs;
     for (const [key, r] of this.switches) {
       const on = key === 'demo' ? !!this.ctx.store.liveSnapshot?.meta.demo : p[key];

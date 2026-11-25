@@ -12,6 +12,8 @@ do meio (0.**3**.0).
 
 ### Adicionado
 
+- Fontes de escritório combináveis, salas de projetos Multica, agentes persistentes e avisos de revisão com link direto para a issue. Sessões locais com identidade confirmada compartilham o personagem do agente e preservam o pedido de permissão original.
+
 - API local de leitura do Multica neste fork para listar workspaces e acompanhar projetos, agentes, issues e execuções por SSE. [Plano e teste](docs/multica-integration.md).
 
 ## [1.0.3] - 2026-10-16

@@ -1,6 +1,6 @@
 // Contexto compartilhado entre os componentes da interface.
 import type { AccountInfo, AgentInfo } from '../../../shared/types';
-import type { OfficeStore } from '../net/store';
+import type { LocalOffice as OfficeStore } from '../net/local-office';
 import type { Selection, WorldApi } from '../world/api';
 import type { UiPrefs } from './prefs';
 

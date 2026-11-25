@@ -1074,7 +1074,7 @@ avec `no-new-privileges`. Les métadonnées des comptes (lettre, e-mail, organis
 
 ## Développement
 
-Ce fork ajoute des bureaux Multica facultatifs. La première étape fournit une API locale en lecture seule. Consultez le [plan et le test en direct](docs/multica-integration.md).
+Ce fork affiche les espaces Multica avec Codex et Claude Code. Ouvrez **Paramètres → Sources du bureau → Rechercher les espaces Multica**. [Configuration et notifications](docs/multica-integration.md#use-the-office).
 
 | Commande | Ce qu'elle fait |
 | --- | --- |

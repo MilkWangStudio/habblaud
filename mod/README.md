@@ -138,3 +138,7 @@ Ao carregar um mod, o Claude Code grava os tipos da versão instalada em `<pasta
 `<pasta>/tsconfig.json` que os estende; os dois são gerados e ficam fora do git (`mod/.gitignore`). Os testes dos
 mods importam `claude-code/testing` e só rodam pelo `claude plugin test`: o `npm test` (vitest) e o
 `npm run typecheck` não olham esta pasta.
+
+## Multica
+
+O hook de permissões do Claude observa também SessionStart. O hook do Codex usa os identificadores da sessão e do agente quando fornecidos pelo Multica. Configure a mesma porta do escritório. [Configuração e uso](../docs/multica-integration.md#use-the-office).

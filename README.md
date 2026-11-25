@@ -1019,7 +1019,7 @@ metadata (letter, email, organization) is read on the host by `docker:up` and pa
 
 ## Development
 
-This fork is adding opt-in Multica offices. The first slice provides a local read-only API. See the [design, milestones and live check](docs/multica-integration.md).
+This fork includes local Multica offices alongside Codex and Claude Code. Open **Settings → Office sources → Find Multica workspaces**. The **Multica** toolbar menu opens a workspace or a pending decision. [Setup and notification behavior](docs/multica-integration.md#use-the-office).
 
 | Command | What it does |
 | --- | --- |

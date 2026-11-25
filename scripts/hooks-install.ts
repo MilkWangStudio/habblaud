@@ -86,11 +86,11 @@ export type PlanAction =
   | { action: 'skip'; message: string };
 
 /** hooks e hooks.PermissionRequest num formato que dá para editar (ou o motivo para não mexer). */
-function eventList(settings: Settings): { hooks: Rec; list: unknown[] } | string {
+function eventList(settings: Settings, event = EVENT): { hooks: Rec; list: unknown[] } | string {
   if (settings.hooks !== undefined && !rec(settings.hooks)) return tr('"hooks" em formato desconhecido; nada foi alterado');
   const hooks = rec(settings.hooks) ?? {};
-  if (hooks[EVENT] !== undefined && !Array.isArray(hooks[EVENT])) return tr('"hooks.{0}" em formato desconhecido; nada foi alterado', [EVENT]);
-  return { hooks, list: (hooks[EVENT] as unknown[] | undefined) ?? [] };
+  if (hooks[event] !== undefined && !Array.isArray(hooks[event])) return tr('"hooks.{0}" em formato desconhecido; nada foi alterado', [event]);
+  return { hooks, list: (hooks[event] as unknown[] | undefined) ?? [] };
 }
 
 /** Lista sem os hooks do Habblaud (grupos que ficarem vazios saem); `removed` = quantos saíram. */
@@ -141,6 +141,24 @@ export function planUninstall(settings: Settings): PlanAction {
   if (Object.keys(hooks).length) next.hooks = hooks;
   else delete next.hooks;
   return { action: 'uninstall', settings: next, message: tr('hook do Habblaud removido') };
+}
+
+/** Keep the managed-session observation alongside the permission integration. */
+function planBoth(settings: Settings, entry?: Rec): PlanAction {
+  const primary = entry ? planInstall(settings, entry) : planUninstall(settings);
+  if (primary.action === 'skip') return primary;
+  const next = primary.action === 'none' ? settings : primary.settings;
+  const ev = eventList(next, 'SessionStart');
+  if (typeof ev === 'string') return { action: 'skip', message: ev };
+  const rest = withoutOurs(ev.list).list;
+  const list = entry ? [...rest, { hooks: [{ type: 'command', command: entry.command, timeout: 5 }] }] : rest;
+  if (JSON.stringify(list) === JSON.stringify(ev.list)) return primary;
+  const hooks = { ...ev.hooks };
+  if (list.length) hooks.SessionStart = list;
+  else delete hooks.SessionStart;
+  const merged = { ...next, hooks };
+  if (!Object.keys(hooks).length) delete (merged as Settings).hooks;
+  return { action: entry ? 'install' : 'uninstall', settings: merged, message: primary.message };
 }
 
 /** Hook do Habblaud instalado nesta conta (o primeiro), ou undefined. */
@@ -260,7 +278,7 @@ export async function run(opts: RunOptions, ctx: RunContext): Promise<number> {
       out(tr('• {0}: instalado ({1}; tempo limite {2} s)', [label, String(h.command), String(h.timeout ?? '?')]));
       continue;
     }
-    const plan = opts.command === 'install' ? planInstall(read.settings, entry) : planUninstall(read.settings);
+    const plan = opts.command === 'install' ? planBoth(read.settings, entry) : planBoth(read.settings);
     if (plan.action === 'none') {
       out(`= ${label}: ${plan.message}`);
       continue;

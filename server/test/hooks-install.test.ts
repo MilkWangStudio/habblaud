@@ -154,11 +154,11 @@ describe('hooks-install.ts (arquivos, HOME falso)', () => {
   it('install: backup, só hooks.PermissionRequest muda, permissão do arquivo preservada; de novo = nada a fazer', async () => {
     expect(await exec('install')).toBe(0);
     const c = read('.claude');
-    expect(c).toEqual({ ...original, hooks: { ...original.hooks, PermissionRequest: [{ matcher: '*', hooks: [expected] }] } });
+    expect(c).toEqual({ ...original, hooks: { ...original.hooks, SessionStart: [{ hooks: [{ type: 'command', command: expected.command, timeout: 5 }] }], PermissionRequest: [{ matcher: '*', hooks: [expected] }] } });
     if (HAS_POSIX_MODES) expect(statSync(join(home, '.claude', 'settings.json')).mode & 0o777).toBe(0o644);
     expect(JSON.parse(readFileSync(join(home, '.claude', 'settings.json.habblaud-backup-20261008-093000'), 'utf8'))).toEqual(original);
     // Conta sem settings.json: cria um só com o hook (sem backup, não havia nada).
-    expect(read('.claude-conta2')).toEqual({ hooks: { PermissionRequest: [{ matcher: '*', hooks: [expected] }] } });
+    expect(read('.claude-conta2')).toEqual({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: expected.command, timeout: 5 }] }], PermissionRequest: [{ matcher: '*', hooks: [expected] }] } });
     expect(readdirSync(join(home, '.claude-conta2')).some((f) => f.includes('backup'))).toBe(false);
     expect(out.join('\n')).toContain('Pronto.');
 

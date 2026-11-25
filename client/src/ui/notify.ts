@@ -47,23 +47,38 @@ export class Notifier implements UiComponent {
     }
   }
 
-  private onNotice(n: Notice): void {
+  private async onNotice(n: Notice): Promise<void> {
     const prefs = this.ctx.prefs;
     // o sino toca mesmo com a aba oculta (é ele que chama você de volta); o estalo, só com ela à vista
     if (n.level === 'alert') this.sounds.play('chime');
     else if (n.level === 'success') this.sounds.play('pop');
     if (n.level === 'alert' && prefs.browserNotifications && document.hidden && notificationState() === 'granted') {
-      try {
+      const show = () => {
+        if (n.review && !this.ctx.store.reviewTarget(n.review)) return;
         const notification = new Notification(tr('Habblaud — precisa de você'), {
           body: n.text,
-          tag: n.agentId ?? n.id,
+          tag: n.review ? n.id : n.agentId ?? n.id,
           icon: '/assets/brand/favicon-32.png',
         });
         notification.onclick = () => {
           window.focus();
-          if (n.agentId && this.ctx.agent(n.agentId)) this.ctx.select({ type: 'agent', id: n.agentId }, { focus: true });
+          if (n.review) {
+            const url = this.ctx.store.reviewTarget(n.review);
+            if (url) window.open(url, '_blank', 'noopener');
+          } else if (n.agentId && this.ctx.agent(n.agentId)) this.ctx.select({ type: 'agent', id: n.agentId }, { focus: true });
           notification.close();
         };
+      };
+      try {
+        if (!n.review || !navigator.locks) { show(); return; }
+        await navigator.locks.request('habblaud:multica:notify', () => {
+          const key = 'habblaud:multica:notified';
+          let recent: string[] = [];
+          try { recent = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* unavailable storage */ }
+          if (Array.isArray(recent) && recent.includes(n.id)) return;
+          show();
+          try { localStorage.setItem(key, JSON.stringify([...(Array.isArray(recent) ? recent.slice(-127) : []), n.id])); } catch { /* Notification.tag also coalesces */ }
+        });
       } catch {
         // Alguns navegadores só permitem notificações via service worker; o toast continua aparecendo.
       }

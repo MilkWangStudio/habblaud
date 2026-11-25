@@ -89,6 +89,9 @@ export class OfficeStore {
   feed: FeedItem[] = [];
   connection: ConnectionState = 'connecting';
   readonly mock: boolean;
+  protected local: OfficeSnapshot | null = null;
+  protected redrawOffice() { if (this.local && !this.replaying) this.setSnapshot(this.local); }
+  visibleAgent(id: string) { return id; }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private listeners = new Map<keyof StoreEvents, Set<(value: any) => void>>();
@@ -155,7 +158,7 @@ export class OfficeStore {
   }
 
   agent(id: string): AgentInfo | undefined {
-    return this.agentIndex.get(id);
+    return this.agentIndex.get(this.visibleAgent(id));
   }
 
   room(id: string): RoomInfo | undefined {
@@ -209,7 +212,7 @@ export class OfficeStore {
   pushReplay(snap: OfficeSnapshot): void {
     if (!this.replay) {
       this.replay = true;
-      this.live = this.snapshot ? { snap: this.snapshot, at: Date.now() } : null;
+      this.live = this.local ? { snap: this.local, at: Date.now() } : null;
     }
     this.setSnapshot(snap);
   }
@@ -222,7 +225,8 @@ export class OfficeStore {
     this.live = null;
     if (live) {
       // `serverTime` avançado pelo tempo guardado: a UI acerta o relógio pelo snapshot que acabou de chegar.
-      this.setSnapshot({ ...live.snap, serverTime: live.snap.serverTime + (Date.now() - live.at) });
+      this.local = { ...(this.local ?? live.snap), serverTime: live.snap.serverTime + (Date.now() - live.at) };
+      this.redrawOffice();
     } else {
       this.snapshot = null;
       this.agentIndex = new Map();
@@ -359,7 +363,7 @@ export class OfficeStore {
 
   // ---------------------------------------------------------------- internos
 
-  private emit<K extends keyof StoreEvents>(event: K, value: StoreEvents[K]): void {
+  protected emit<K extends keyof StoreEvents>(event: K, value: StoreEvents[K]): void {
     this.listeners.get(event)?.forEach((cb) => {
       try {
         cb(value);
@@ -376,14 +380,15 @@ export class OfficeStore {
   }
 
   private applySnapshot(snap: OfficeSnapshot): void {
-    const cur = this.replay ? this.live?.snap : this.snapshot;
+    const cur = this.local;
     if (cur && snap.rev < cur.rev && snap.meta.startedAt === cur.meta.startedAt) return;
+    this.local = snap;
     if (this.replay) this.live = { snap, at: Date.now() };
-    else this.setSnapshot(snap);
+    else this.redrawOffice();
     this.checkBuild(snap.meta.build);
   }
 
-  private setSnapshot(snap: OfficeSnapshot): void {
+  protected setSnapshot(snap: OfficeSnapshot): void {
     this.snapshot = snap;
     this.agentIndex = new Map(snap.agents.map((a) => [a.id, a]));
     this.roomIndex = new Map(snap.rooms.map((r) => [r.id, r]));

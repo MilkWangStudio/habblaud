@@ -5,6 +5,7 @@ const auth = { origin: 'https://multica.invalid', token: 'test-secret' };
 const scope = 'test-workspace';
 function upstream(change: Record<string, unknown> = {}) {
   const replies: Record<string, unknown> = {
+    '/api/me': { id: 'viewer' },
     '/api/workspaces': [{ id: scope, name: 'Office' }],
     '/api/projects?limit=100&offset=0': { projects: [{ id: 'p', title: 'Project' }], total: 1 },
     '/api/issues?limit=100&offset=0': { issues: [{ id: 'i', description: 'private-text' }], total: 2 },
@@ -19,7 +20,7 @@ function upstream(change: Record<string, unknown> = {}) {
     const path = url.slice(auth.origin.length);
     expect(opts.redirect).toBe('error');
     expect(opts.headers).toMatchObject({ Authorization: 'Bearer test-secret' });
-    if (path !== '/api/workspaces') expect(opts.headers).toMatchObject({ 'X-Workspace-ID': scope });
+    if (!['/api/me', '/api/workspaces'].includes(path)) expect(opts.headers).toMatchObject({ 'X-Workspace-ID': scope });
     return Response.json(replies[path]);
   });
 }

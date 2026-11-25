@@ -347,7 +347,8 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
       else if (isRemote(req) || !isLoopbackHost(host) || !isLoopbackAddress(req.socket.remoteAddress) ||
         (origin !== undefined && origin !== 'http://' + host) || req.headers['sec-fetch-site'] === 'cross-site') {
         sendJson(res, 403, { error: 'local_only' });
-      } else if (method !== 'GET') methodNotAllowed(res, 'GET');
+      } else if (path === '/api/multica/session' && (origin || req.headers['sec-fetch-site'])) sendJson(res, 403, { error: 'hook_only' });
+      else if (method !== (path === '/api/multica/session' ? 'POST' : 'GET')) methodNotAllowed(res, path === '/api/multica/session' ? 'POST' : 'GET');
       else deps.multica.handle(req, res, path);
       return true;
     }

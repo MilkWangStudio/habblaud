@@ -1,7 +1,7 @@
 // O app do cliente: store (dados) -> mundo (canvas) -> UI (painéis). Carregado por main.ts depois do dicionário do
 // idioma ativo, porque vários módulos chamam tr() ao carregar.
 import { loadAccess } from './net/access';
-import { OfficeStore } from './net/store';
+import { LocalOffice as OfficeStore } from './net/local-office';
 import { createWorld, type WorldApi } from './world';
 import { createUI } from './ui';
 import type { CitySceneHost } from './ui/world/scene-switch';

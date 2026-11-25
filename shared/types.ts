@@ -412,6 +412,8 @@ export interface FeedItem {
 export type NoticeLevel = 'info' | 'success' | 'warn' | 'alert';
 
 export interface Notice {
+  /** Local UI reference to a human-owned Multica issue. */
+  review?: { workspace: string; issue: string };
   id: string;
   level: NoticeLevel;
   text: string;

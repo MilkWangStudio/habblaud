@@ -4,6 +4,10 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { isLoopbackBind } from '../../config';
 
+import { codexBindings } from './rollouts';
+import type { WorkspaceFacts } from '../../../shared/multica';
+export type { WorkspaceFacts } from '../../../shared/multica';
+
 export interface Credentials { origin: string; token: string }
 export class MulticaError extends Error {
   constructor(readonly code: 'credentials' | 'access' | 'upstream' | 'protocol') { super(code); }
@@ -48,7 +52,7 @@ async function get(auth: Credentials, path: string, signal: AbortSignal, workspa
 }
 
 export async function listWorkspaces(auth: Credentials, signal: AbortSignal) {
-  return rows(await get(auth, '/api/workspaces', signal), 'workspaces').map(w => ({ id: id(w), name: string(w.name) }));
+  return rows(await get(auth, '/api/workspaces', signal), 'workspaces').map(w => ({ id: id(w), name: string(w.name), slug: string(w.slug) }));
 }
 
 async function pages(auth: Credentials, workspace: string, resource: 'issues' | 'projects', signal: AbortSignal) {
@@ -76,24 +80,27 @@ async function pages(auth: Credentials, workspace: string, resource: 'issues' | 
   throw new MulticaError('upstream');
 }
 
-export async function readWorkspace(auth: Credentials, workspaceId: string, signal: AbortSignal) {
+export async function readWorkspace(auth: Credentials, workspaceId: string, signal: AbortSignal): Promise<WorkspaceFacts> {
   const workspace = (await listWorkspaces(auth, signal)).find(w => w.id === workspaceId);
   if (!workspace) throw new MulticaError('access');
   const list = async (path: string, field: string) => rows(await get(auth, path, signal, workspaceId), field);
-  const [projects, issues, agents, runs, runtimes] = await Promise.all([
+  const [projects, issues, agents, runs, runtimes, me] = await Promise.all([
     pages(auth, workspaceId, 'projects', signal), pages(auth, workspaceId, 'issues', signal),
-    list('/api/agents', 'agents'), list('/api/agent-task-snapshot', 'tasks'), list('/api/runtimes', 'runtimes'),
+    list('/api/agents', 'agents'), list('/api/agent-task-snapshot', 'tasks'), list('/api/runtimes', 'runtimes'), get(auth, '/api/me', signal),
   ]);
   for (const group of [projects, issues, agents, runs, runtimes]) {
     if (group.some(r => r.workspace_id && r.workspace_id !== workspaceId)) throw new MulticaError('protocol');
   }
   const providers = new Map(runtimes.map(r => [id(r), string(r.provider)]));
   return {
-    workspace,
+    bindings: await codexBindings(join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'multica-sessions'),
+      runs.filter(r => providers.get(string(r.runtime_id)) === 'codex' && ['running', 'in_progress'].includes(string(r.status)))
+        .map(r => ({ agentId: string(r.agent_id), issueId: string(r.issue_id) }))),
+    workspace, viewerId: id(object(me)), webOrigin: webOrigin(auth.origin),
     projects: projects.map(p => ({ id: id(p), name: string(p.title) })),
     agents: agents.filter(a => !a.archived_at).map(a => ({ id: id(a), name: string(a.name) })),
     issues: issues.map(i => ({
-      id: id(i), title: string(i.title), identifier: string(i.identifier), projectId: string(i.project_id),
+      id: id(i), updatedAt: string(i.updated_at), title: string(i.title), identifier: string(i.identifier), projectId: string(i.project_id),
       assigneeId: string(i.assignee_id), assigneeType: string(i.assignee_type),
       status: string(i.status), category: string(i.status_category), label: string(i.status_name),
     })),
@@ -105,4 +112,11 @@ export async function readWorkspace(auth: Credentials, workspaceId: string, sign
     }),
   };
 }
-export type WorkspaceFacts = Awaited<ReturnType<typeof readWorkspace>>;
+function webOrigin(origin: string) {
+  const configured = process.env.HABBLAUD_MULTICA_WEB_ORIGIN;
+  if (!configured) return origin === 'https://api.multica.ai' ? 'https://multica.ai' : origin;
+  const url = new URL(configured);
+  if (url.username || url.password || (url.protocol !== 'https:' &&
+    !(url.protocol === 'http:' && isLoopbackBind(url.hostname)))) throw new MulticaError('protocol');
+  return url.origin;
+}

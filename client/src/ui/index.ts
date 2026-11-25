@@ -1,3 +1,4 @@
+import { OfficeNavigation } from './multica-navigation';
 // Interface do Habblaud (painéis DOM sobre o canvas do escritório).
 // Recebe o OfficeStore (dados) e o WorldApi (canvas) e monta: barra superior com uso por conta,
 // barra lateral, gaveta de detalhes, feed, avisos, configurações, ajuda e estados de carregamento/vazio.
@@ -9,7 +10,7 @@ import '@fontsource/pixelify-sans/600.css';
 import '@fontsource/pixelify-sans/700.css';
 import './styles.css';
 
-import type { OfficeStore } from '../net/store';
+import type { LocalOffice as OfficeStore } from '../net/local-office';
 import type { Selection, WorldApi } from '../world/api';
 import type { PanelName, TerminalRouter, UiComponent, UiContext } from './context';
 import { DayLauncher } from './daystats-launcher';
@@ -104,6 +105,8 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
     agent: (id) => store.agent(id),
     selection: () => selection,
     select(sel, opts) {
+      if (sel?.type === 'agent') sel = { ...sel, id: store.visibleAgent(sel.id) };
+      if (sel) store.reveal(sel.id);
       // Na cidade o escritório (gaveta, terminal) fica escondido: escolher um agente ou sala volta para ele. Antes de
       // tudo: a área livre só mede a gaveta e a barra lateral sem a classe `is-city`.
       scene?.leaveFor(sel);
@@ -173,6 +176,8 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
   const sound = new SoundControl(ctx);
   const notifier = new Notifier(ctx, sound.board);
   topbar = new TopBar(ctx);
+  const offices = new OfficeNavigation(ctx);
+  topbar.panelGroup.prepend(offices.button);
   sidebar = new Sidebar(ctx);
   // Terminal interativo (Claude Code de verdade, dentro do navegador): abrir, assumir e encerrar sessões.
   const pty = new PtyPanel(ctx);
@@ -196,6 +201,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
     },
     newSession: (cwd, account) => pty.newSession(cwd, account),
     open(id, opener) {
+      if (store.managed.has(id)) return;
       const readOnly = !!store.snapshot?.meta.terminal && !store.replaying;
       if (pty.ptyOf(id) || (pty.enabled && !readOnly && ctx.agent(id)?.kind === 'main')) pty.openAgent(id);
       else {
@@ -277,8 +283,8 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
   topbar.addPanelButton(day.button);
   // Botão direito numa sala (lista lateral ou escritório): renomear.
   const renamer = new RoomRenamer(ctx);
-  ctx.renameRoom = (id, at) => renamer.open(id, at);
-  world.onRoomContextMenu?.((id, at) => renamer.open(id, at));
+  ctx.renameRoom = (id, at) => { if (!store.managed.has(id)) renamer.open(id, at); };
+  world.onRoomContextMenu?.((id, at) => ctx.renameRoom?.(id, at));
   const empty = new EmptyState(ctx);
   const banner = new ConnectionBanner(ctx);
   const update = new UpdateBanner(store);
@@ -288,7 +294,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
   const scrim = h('div', { class: 'ui-scrim', attrs: { 'aria-hidden': 'true' }, on: { click: () => ctx.togglePanel('sidebar', false) } });
 
   root.classList.add('ui-root');
-  root.append(timelapse.vignette, topbar.el, sidebar.el, scrim, feed.el, drawer.el, terminal.el, pty.el, timelapse.el, timelapse.badge, toasts.el, banner.el, update.el, empty.el, popups.el, tip.el, settings.el, worldDialog.el, history.el, deliveries.el, help.el, renamer.el, live, splash.el);
+  root.append(offices.panel, timelapse.vignette, topbar.el, sidebar.el, scrim, feed.el, drawer.el, terminal.el, pty.el, timelapse.el, timelapse.badge, toasts.el, banner.el, update.el, empty.el, popups.el, tip.el, settings.el, worldDialog.el, history.el, deliveries.el, help.el, renamer.el, live, splash.el);
   area = new FreeArea(world, { root, topbar: topbar.el, sidebar: sidebar.el, drawer: drawer.el, feed: feed.el }, () => ({
     sidebar: panels.sidebar,
     feed: panels.feed,
@@ -297,7 +303,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
   }));
   drawer.onLayoutChange = () => applyLayout();
 
-  const components: UiComponent[] = [topbar, sidebar, drawer, terminal, pty, history, deliveries, feed, toasts, settings, empty, banner, tip, notifier, splash, timelapse, sound, day, updateToaster, worldDialog, popups, worldChip];
+  const components: UiComponent[] = [offices, topbar, sidebar, drawer, terminal, pty, history, deliveries, feed, toasts, settings, empty, banner, tip, notifier, splash, timelapse, sound, day, updateToaster, worldDialog, popups, worldChip];
   if (scene) components.push(scene);
   root.append(worldSocial.el);
   components.push(worldSocial);
@@ -343,6 +349,9 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
   store.on('snapshot', (snap) => {
     // Ao vivo, o "agora" da interface segue o relógio do servidor (o aparelho pode estar adiantado ou atrasado).
     // No timelapse, quem manda é o instante reproduzido pelo player (parado quando pausado).
+    if (selection?.type === 'agent' && store.visibleAgent(selection.id) !== selection.id) {
+      ctx.select({ type: 'agent', id: store.visibleAgent(selection.id) });
+    } else if (selection?.id.startsWith('multica:') && !store.managed.has(selection.id)) ctx.select(null);
     if (store.connection === 'open' && !store.replaying) skew = snap.serverTime - Date.now();
     invalidate();
   });
@@ -471,6 +480,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
    */
   function toggleTerminal(): void {
     const id = selection?.type === 'agent' ? selection.id : null;
+    if (id !== null && store.managed.has(id)) return;
     if (id !== null && pty.enabled && ctx.agent(id)?.kind === 'main') return router.toggle(id);
     if (id === null && pty.isOpen) return pty.close();
     if (terminal.isOpen && (id === null || terminal.agentId === id)) terminal.close();

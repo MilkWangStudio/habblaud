@@ -1,3 +1,4 @@
+import { ManagedDrawer } from './multica';
 // Gaveta de detalhes (direita): agente ou sala selecionados. Agente do Codex: selo "Codex", textos dele (onde
 // responder, o terminal, a aprovação no lugar do modo de permissão, sem custo) e a dica dos hooks do Codex.
 import type { Activity, AgentInfo, FeedItem, RoomInfo, ShellJob, TaskItem } from '../../../shared/types';
@@ -959,7 +960,8 @@ export class Drawer implements UiComponent {
   private body: HTMLElement;
   private agentView: AgentView;
   private roomView: RoomView;
-  private mode: 'agent' | 'room' | null = null;
+  private managed: ManagedDrawer;
+  private mode: 'agent' | 'room' | 'multica' | null = null;
   private heading: HTMLElement;
   private movable: Movable;
   /** Avisado quando a gaveta é solta ou volta ao lugar (a área livre do escritório muda). */
@@ -970,6 +972,7 @@ export class Drawer implements UiComponent {
     terminal: TerminalControl,
     pty: PtyControl,
   ) {
+    this.managed = new ManagedDrawer(ctx);
     this.agentView = new AgentView(ctx, terminal, pty);
     this.roomView = new RoomView(ctx, pty);
     this.heading = h('span', { class: 'ui-drawer__kind' });
@@ -1002,18 +1005,22 @@ export class Drawer implements UiComponent {
 
   render(): void {
     const sel = this.ctx.selection();
-    const mode = sel?.type ?? null;
+    const managed = sel && !this.ctx.store.replaying && sel.id.startsWith('multica:');
+    const mode = managed ? 'multica' : sel?.type ?? null;
     if (mode !== this.mode) {
       // Gaveta fechada ou fora do agente: o editor fecha, e ao reabrir começa do estado atual do agente.
       if (this.mode === 'agent') this.agentView.character.close();
       this.mode = mode;
-      this.body.replaceChildren(...(mode === 'agent' ? [this.agentView.el] : mode === 'room' ? [this.roomView.el] : []));
+      this.body.replaceChildren(...(mode === 'agent' ? [this.agentView.el] : mode === 'room' ? [this.roomView.el] : mode === 'multica' ? [this.managed.el] : []));
       this.body.scrollTop = 0;
       this.el.classList.toggle('is-open', mode !== null);
       setAttr(this.el, 'aria-hidden', mode ? 'false' : 'true');
       this.el.inert = mode === null;
     }
-    if (sel?.type === 'agent') {
+    if (managed && sel) {
+      this.managed.render(this.ctx.store.managed.get(sel.id));
+      setText(this.heading, 'Multica');
+    } else if (sel?.type === 'agent') {
       if (this.agentView.agentId !== sel.id) this.body.scrollTop = 0;
       this.agentView.open(sel.id);
       setText(this.heading, this.ctx.agent(sel.id)?.kind === 'sub' ? tr('Subagente') : tr('Agente'));
