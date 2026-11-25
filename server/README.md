@@ -322,12 +322,13 @@ O login vem de `~/.multica/config.json` ou do caminho em `MULTICA_CONFIG`. O tok
 | Rota GET | Resposta |
 | --- | --- |
 | `/api/multica/workspaces` | `{workspaces: [{id, name}]}` para a conta atual |
-| `/api/multica/workspaces/:id/events` | SSE com `state` e, quando `live`, `facts` para o workspace |
+| `/api/multica/events?workspace=:id&workspace=:id2` | Uma SSE por aba, com um quadro `{workspaceId, frame}` por atualização. Repita `workspace` para cada seleção. |
+| `/api/multica/workspaces/:id/events` | Compatibilidade com clientes anteriores. SSE com `state` e, quando `live`, `facts` para o workspace |
 
 O primeiro quadro é `connecting` ou o estado atual de uma assinatura compartilhada. Em falha de conexão chega
 `stale`. Credenciais inválidas ou perda de acesso produzem `unavailable`. Ambos substituem os dados anteriores.
 O servidor refaz a leitura após a autenticação do WebSocket, ao receber mudanças e a cada cinco minutos.
-A última aba a sair encerra a assinatura. As rotas ficam fora do Docker, da porta remota e do Habblaud World.
+Dois segundos depois de sair o último assinante, o servidor encerra o WebSocket daquele workspace. As rotas ficam fora do Docker, da porta remota e do Habblaud World.
 O hook local envia os identificadores de sessão, executor, workspace e agente em `POST /api/multica/session`.
 O servidor aceita a rota apenas de processos locais e mantém associações limitadas em memória. A interface mostra
 apenas agentes visíveis na assinatura autenticada. `HABBLAUD_MULTICA_WEB_ORIGIN` configura a origem dos links para

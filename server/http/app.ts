@@ -24,7 +24,7 @@ import type { FileFetcher } from '../deliveries/fetcher';
 import { HOST_WAIT_MS } from '../host-wait';
 
 export interface ApiDeps {
-  multica?: { handle(req: IncomingMessage, res: ServerResponse, path: string): void; close(): void };
+  multica?: { handle(req: IncomingMessage, res: ServerResponse, url: URL): void; close(): void };
   office: Office;
   hub: Hub;
   accounts: AccountsService;
@@ -349,7 +349,7 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
         sendJson(res, 403, { error: 'local_only' });
       } else if (path === '/api/multica/session' && (origin || req.headers['sec-fetch-site'])) sendJson(res, 403, { error: 'hook_only' });
       else if (method !== (path === '/api/multica/session' ? 'POST' : 'GET')) methodNotAllowed(res, path === '/api/multica/session' ? 'POST' : 'GET');
-      else deps.multica.handle(req, res, path);
+      else deps.multica.handle(req, res, url);
       return true;
     }
     if (path === '/api/world' || path.startsWith('/api/world/')) {

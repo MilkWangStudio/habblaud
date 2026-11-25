@@ -13,9 +13,9 @@ The source selector starts with the existing local office and lets the user also
 
 ## How updates reach the office
 
-1. A local client lists workspaces and subscribes to the ones it selects. Each subscribed workspace shares one upstream connection across tabs. Closing its last subscriber stops that connection.
+1. Each browser tab opens one Multica SSE stream for all its selected workspaces, in addition to the local office stream. Selecting no workspace closes the Multica stream. Changing the selection replaces that stream and retains the current frames for workspaces still selected. Multiple tabs share the same upstream WebSocket for each workspace. After its last subscriber leaves, the server waits two seconds before closing that socket so a replacement stream can reuse it.
 2. The server opens the workspace WebSocket, authenticates using the local Multica CLI credentials and reads facts after the acknowledgement. A change event schedules a new authenticated HTTP snapshot. Task output and heartbeats do not schedule reads. Events arriving during a read trigger a follow-up read.
-3. The browser receives full replacement frames through local SSE. On disconnect, replace live facts with a stale indicator. On loss of access, clear facts. Reconnect with backoff, resnapshot after authentication and reconcile every five minutes while connected.
+3. Each SSE message identifies its workspace and contains a full replacement frame. An upstream failure marks just that workspace stale. A browser-side disconnect marks all of that tab’s selected workspaces stale. The first live snapshot for each workspace after transport loss restores pending work and establishes a new notification baseline. On loss of access, clear facts. Reconnect with backoff, resnapshot after authentication and reconcile every five minutes while connected.
 4. Use project and issue IDs for associations. The run snapshot covers active work and recent outcomes per agent. It is insufficient for reconstructing every historical transition. HTTP resources are read separately and can change between reads.
 
 The adapter ships in the fork and uses Node's built-in networking. It requires a working Multica CLI login on the machine running Habblaud. Credentials are read server-side. Issue titles and agent names stay on the local API. The World uplink, remote listener, timeline and global local-session feed receive no Multica frames.
@@ -54,8 +54,8 @@ Build and run this branch locally with Node 22.12 or newer, then use the port pr
 
 ```sh
 curl --fail http://127.0.0.1:4747/api/multica/workspaces
-# Use an id from that response.
-curl --no-buffer "http://127.0.0.1:4747/api/multica/workspaces/$WORKSPACE_ID/events"
+# Use IDs from that response. Repeat the workspace parameter for each selection.
+curl --no-buffer "http://127.0.0.1:4747/api/multica/events?workspace=$WORKSPACE_ID&workspace=$SECOND_WORKSPACE_ID"
 ```
 
-A working subscription emits `connecting` then `live` with the selected workspace, projects, issues, agents and runs. The office UI subscribes to these same frames. The [server reference](../server/README.md#multica) describes access rules and failure states.
+Messages have the shape `{workspaceId, frame}`. A fresh subscription emits `connecting` then `live` for each workspace. A shared subscription can start with a cached live frame. The office UI subscribes to these same frames. The [server reference](../server/README.md#multica) describes access rules and failure states.

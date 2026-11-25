@@ -10,6 +10,10 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Alterado
+
+- Cada aba usa uma conexão SSE para todos os workspaces Multica selecionados. Uma falha de acesso em um workspace afeta apenas os dados dele.
+
 ### Adicionado
 
 - Fontes de escritório combináveis, salas de projetos Multica, agentes persistentes e avisos de revisão com link direto para a issue. Sessões locais com identidade confirmada compartilham o personagem do agente e preservam o pedido de permissão original.

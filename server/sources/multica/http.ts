@@ -1,15 +1,19 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { uuid, type SessionBinding } from '../../../shared/multica';
+import { uuid, type MulticaFrame, type SessionBinding, type WorkspaceEvent } from '../../../shared/multica';
 import { readJson, sendJson } from '../../http/app';
 import { listWorkspaces, MulticaError, readCredentials } from './client';
 import { WorkspaceStream } from './stream';
 
-const workspaceId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+// Allow EventSource replacement after a workspace selection change to reuse the upstream socket.
+const releaseDelay = 2000;
+
 export function multicaRoutes() {
   const streams = new Map<string, WorkspaceStream>();
   const bindings = new Map<string, { workspace: string; value: SessionBinding }>();
   const clients = new Set<ServerResponse>();
-  const handle = (req: IncomingMessage, res: ServerResponse, path: string) => {
+  const releases = new Map<string, NodeJS.Timeout>();
+  const handle = (req: IncomingMessage, res: ServerResponse, url: URL) => {
+    const path = url.pathname;
     clients.add(res);
     res.once('close', () => clients.delete(res));
     if (path === '/api/multica/session') {
@@ -45,27 +49,63 @@ export function multicaRoutes() {
       return;
     }
     const match = /^\/api\/multica\/workspaces\/([^/]+)\/events$/.exec(path);
-    if (!match || !workspaceId.test(match[1])) return sendJson(res, 404, { error: 'unknown_workspace_route' });
-    const id = match[1];
-    const stream = streams.get(id) ?? new WorkspaceStream(id, () => [...bindings.values()].filter(b => b.workspace === id).map(b => b.value));
-    const start = !streams.has(id);
-    streams.set(id, stream);
+    const combined = path === '/api/multica/events';
+    if (!combined && !match) return sendJson(res, 404, { error: 'unknown_workspace_route' });
+    const ids = [...new Set(combined ? url.searchParams.getAll('workspace') : [match![1]])];
+    if (!ids.length || ids.some(id => !uuid.test(id))) {
+      return sendJson(res, combined ? 400 : 404, { error: 'invalid_workspace' });
+    }
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', 'Cross-Origin-Resource-Policy': 'same-origin' });
-    const unsubscribe = stream.subscribe(frame => {
-      if (res.destroyed) return;
-      if (res.writableLength > 4 * 1024 * 1024) res.destroy();
-      else res.write('data: ' + JSON.stringify(frame) + '\n\n');
+
+    // If the browser falls behind, keep only the most recent full frame for each workspace.
+    const pending = new Map<string, MulticaFrame>();
+    let writable = true;
+    const write = (id: string, frame: MulticaFrame) => {
+      const payload: WorkspaceEvent | MulticaFrame = combined ? { workspaceId: id, frame } : frame;
+      writable = res.write('data: ' + JSON.stringify(payload) + '\n\n');
+    };
+    res.on('drain', () => {
+      writable = true;
+      for (const [id, frame] of pending) {
+        pending.delete(id);
+        write(id, frame);
+        if (!writable) break;
+      }
     });
-    const heartbeat = setInterval(() => res.write(': ping\n\n'), 15_000);
+    const detach = ids.map(id => {
+      clearTimeout(releases.get(id));
+      releases.delete(id);
+      const current = streams.get(id);
+      const stream = current ?? new WorkspaceStream(id, () => [...bindings.values()].filter(b => b.workspace === id).map(b => b.value));
+      streams.set(id, stream);
+      const unsubscribe = stream.subscribe(frame => {
+        if (res.destroyed) return;
+        if (writable) write(id, frame);
+        else pending.set(id, frame);
+      });
+      if (!current) void stream.run();
+      return () => {
+        unsubscribe();
+        if (stream.empty && streams.get(id) === stream) {
+          releases.set(id, setTimeout(() => {
+            releases.delete(id);
+            stream.close();
+            streams.delete(id);
+          }, releaseDelay));
+        }
+      };
+    });
+    const heartbeat = setInterval(() => { if (writable) writable = res.write(': ping\n\n'); }, 15_000);
     res.once('close', () => {
       clearInterval(heartbeat);
-      unsubscribe();
-      if (stream.empty) { stream.close(); streams.delete(id); }
+      for (const unsubscribe of detach) unsubscribe();
     });
-    if (start) void stream.run();
   };
   return { handle, close() {
     for (const stream of streams.values()) stream.close();
+    streams.clear();
+    for (const timer of releases.values()) clearTimeout(timer);
+    releases.clear();
     for (const res of clients) res.destroy();
   } };
 }

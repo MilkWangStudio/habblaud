@@ -1,4 +1,4 @@
-import { uuid, type WorkspaceFacts, type WorkspaceRef, type MulticaFrame } from '../../../shared/multica';
+import { uuid, type WorkspaceFacts, type WorkspaceRef, type MulticaFrame, type WorkspaceEvent } from '../../../shared/multica';
 import { defaults, handoffs, type SelectionPrefs } from './multica-model';
 
 const prefKey = 'habblaud:multica:sources';
@@ -15,7 +15,9 @@ export class MulticaSources {
   list: WorkspaceRef[] = [];
   state: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   frames = new Map<string, MulticaFrame>();
-  private streams = new Map<string, EventSource>();
+  private stream?: EventSource;
+  private selection = '';
+  private retry?: ReturnType<typeof setTimeout>;
   private generation = 0;
   enabled = false;
   constructor(private change: () => void, private review: (facts: WorkspaceFacts, issue: WorkspaceFacts['issues'][number]) => void) {}
@@ -52,33 +54,50 @@ export class MulticaSources {
     this.sync(); this.change();
   }
   private sync() {
-    const selected = new Set(this.enabled ? this.list.filter(w => this.prefs.workspaces.includes(w.id)).map(w => w.id) : []);
-    for (const [id, stream] of this.streams) if (!selected.has(id)) {
-      stream.close(); this.streams.delete(id); this.frames.delete(id);
-    }
-    for (const id of selected) if (!this.streams.has(id)) {
-      const es = new EventSource('/api/multica/workspaces/' + id + '/events');
-      this.streams.set(id, es); this.frames.set(id, { state: 'connecting' });
-      es.onmessage = ev => {
-        if (this.streams.get(id) !== es) return;
-        const prev = this.frames.get(id);
-        let frame: MulticaFrame;
-        try {
-          frame = JSON.parse(ev.data);
-          if (frame.state === 'live' && frame.facts.workspace.id !== id) throw Error();
-        } catch { frame = { state: 'stale' }; }
-        this.frames.set(id, frame); this.change();
-        if (frame.state === 'live') for (const issue of handoffs(prev?.state === 'live' ? prev.facts : undefined, frame.facts)) this.review(frame.facts, issue);
-      };
-      es.onerror = () => {
-        if (this.streams.get(id) !== es) return;
-        this.frames.set(id, { state: 'stale' }); this.change();
-        if (es.readyState === EventSource.CLOSED) {
-          this.streams.delete(id);
-          setTimeout(() => { if (this.enabled && this.prefs.workspaces.includes(id)) void this.discover(); }, 3000);
-        }
-      };
-    }
+    const ids = this.enabled ? this.list.map(w => w.id).filter(id => this.prefs.workspaces.includes(id)).sort() : [];
+    const selection = ids.join(',');
+    if (selection === this.selection && (this.stream || !ids.length)) return;
+    this.selection = selection;
+    clearTimeout(this.retry);
+    this.stream?.close();
+    this.stream = undefined;
+    const selected = new Set(ids);
     for (const id of this.frames.keys()) if (!selected.has(id)) this.frames.delete(id);
+    if (!ids.length) return;
+    const params = new URLSearchParams();
+    for (const id of selected) {
+      params.append('workspace', id);
+      if (!this.frames.has(id)) this.frames.set(id, { state: 'connecting' });
+    }
+    const es = new EventSource('/api/multica/events?' + params);
+    this.stream = es;
+    es.onmessage = ev => {
+      if (this.stream !== es) return;
+      let event: WorkspaceEvent;
+      try { event = JSON.parse(ev.data); } catch { return; }
+      if (!event || !selected.has(event.workspaceId)) return;
+      const { workspaceId, frame } = event;
+      const previous = this.frames.get(workspaceId);
+      if (!frame || !['connecting', 'live', 'stale', 'unavailable'].includes(frame.state) ||
+          (frame.state === 'live' && frame.facts?.workspace?.id !== workspaceId)) {
+        this.frames.set(workspaceId, { state: 'stale' });
+        this.change();
+        return;
+      }
+      this.frames.set(workspaceId, frame);
+      this.change();
+      if (frame.state === 'live') {
+        for (const issue of handoffs(previous?.state === 'live' ? previous.facts : undefined, frame.facts)) this.review(frame.facts, issue);
+      }
+    };
+    es.onerror = () => {
+      if (this.stream !== es) return;
+      for (const id of selected) this.frames.set(id, { state: 'stale' });
+      if (es.readyState === EventSource.CLOSED) {
+        this.stream = undefined;
+        this.retry = setTimeout(() => { if (this.enabled && this.selection === selection) this.sync(); }, 3000);
+      }
+      this.change();
+    };
   }
 }

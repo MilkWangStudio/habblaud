@@ -17,4 +17,5 @@ export interface WorkspaceFacts {
   bindings?: SessionBinding[];
 }
 export type MulticaFrame = { state: 'live'; facts: WorkspaceFacts } | { state: 'connecting' | 'stale' | 'unavailable'; reason?: string };
+export interface WorkspaceEvent { workspaceId: string; frame: MulticaFrame }
 export const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
