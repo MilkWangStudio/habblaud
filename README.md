@@ -1019,6 +1019,8 @@ metadata (letter, email, organization) is read on the host by `docker:up` and pa
 
 ## Development
 
+This fork is adding opt-in Multica offices. The first slice provides a local read-only API. See the [design, milestones and live check](docs/multica-integration.md).
+
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Server + Vite at http://localhost:4747, with hot reload. |

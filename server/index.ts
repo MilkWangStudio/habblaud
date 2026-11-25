@@ -6,10 +6,11 @@ import http from 'node:http';
 import { join } from 'node:path';
 import { codexDirsRefused, isDefaultDir } from './accounts/detect';
 import { AccountsService } from './accounts/service';
-import { isTruthy, loadConfig, messagesOffReason, terminalOffReason, worldSocketUrl } from './config';
+import { isLoopbackBind, isTruthy, loadConfig, messagesOffReason, terminalOffReason, worldSocketUrl } from './config';
 import { createApiHandler, sendJson } from './http/app';
 import { createRequestGuard, isLoopbackHost } from './http/guard';
 import { createRemoteGate, isRemoteRequest, loadSecret, RemoteSessions, startRemoteListener, type RemoteListener } from './http/remote';
+import { multicaRoutes } from './sources/multica/http';
 import { Hub } from './http/sse';
 import { createStaticHandler } from './http/static';
 import { TerminalStreams } from './http/terminal';
@@ -338,7 +339,9 @@ const ticker = setInterval(() => {
   }
 }, 250);
 
+const multica = !config.inDocker && isLoopbackBind(config.host) ? multicaRoutes() : undefined;
 const api = createApiHandler({
+  multica,
   renameRoom: (id, name) => {
     const path = office.roomPath(id);
     if (!path) return undefined;
@@ -548,6 +551,7 @@ function shutdown(signal: string): void {
   stats.stop();
   agents.stop();
   accounts.stop();
+  multica?.close();
   hub.stop();
   terminals?.stop();
   timeline?.stop();

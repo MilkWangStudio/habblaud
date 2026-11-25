@@ -1060,6 +1060,8 @@ los pasa al contenedor.
 
 ## Desarrollo
 
+Este fork incorpora oficinas opcionales de Multica. La primera etapa ofrece una API local de solo lectura. Consulta el [plan y la prueba en vivo](docs/multica-integration.md).
+
 | Comando | Qué hace |
 | --- | --- |
 | `npm run dev` | Servidor + Vite en http://localhost:4747, con recarga automática. |

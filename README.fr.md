@@ -1074,6 +1074,8 @@ avec `no-new-privileges`. Les métadonnées des comptes (lettre, e-mail, organis
 
 ## Développement
 
+Ce fork ajoute des bureaux Multica facultatifs. La première étape fournit une API locale en lecture seule. Consultez le [plan et le test en direct](docs/multica-integration.md).
+
 | Commande | Ce qu'elle fait |
 | --- | --- |
 | `npm run dev` | Serveur + Vite sur http://localhost:4747, avec rechargement automatique. |

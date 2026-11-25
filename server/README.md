@@ -314,6 +314,22 @@ Regras:
   `404`.
 - Personagem sem uso há 60 dias some, como os nomes.
 
+## Multica
+
+No processo local com escuta em loopback e fora do modo demo, o servidor atende duas rotas de leitura.
+O login vem de `~/.multica/config.json` ou do caminho em `MULTICA_CONFIG`. O token fica no servidor.
+
+| Rota GET | Resposta |
+| --- | --- |
+| `/api/multica/workspaces` | `{workspaces: [{id, name}]}` para a conta atual |
+| `/api/multica/workspaces/:id/events` | SSE com `state` e, quando `live`, `facts` para o workspace |
+
+O primeiro quadro é `connecting` ou o estado atual de uma assinatura compartilhada. Em falha de conexão chega
+`stale`. Credenciais inválidas ou perda de acesso produzem `unavailable`. Ambos substituem os dados anteriores.
+O servidor refaz a leitura após a autenticação do WebSocket, ao receber mudanças e a cada cinco minutos.
+A última aba a sair encerra a assinatura. As rotas ficam fora do Docker, da porta remota e do Habblaud World.
+O [plano de integração](../docs/multica-integration.md) cobre a interface e o teste com sessões locais.
+
 ## Codex
 
 Fontes de agentes (`sources/source.ts`): `SourceSet` junta a do Claude Code (`ClaudeWatcher`) e, quando há pastas do

@@ -24,6 +24,7 @@ import type { FileFetcher } from '../deliveries/fetcher';
 import { HOST_WAIT_MS } from '../host-wait';
 
 export interface ApiDeps {
+  multica?: { handle(req: IncomingMessage, res: ServerResponse, path: string): void; close(): void };
   office: Office;
   hub: Hub;
   accounts: AccountsService;
@@ -282,6 +283,7 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
   const handleDemo = async (req: IncomingMessage, res: ServerResponse) => {
     const body = (await readJson(req)) as { enabled?: unknown };
     if (typeof body?.enabled !== 'boolean') throw new HttpError(400, tr('esperado {enabled: boolean}'));
+    if (body.enabled) deps.multica?.close();
     office.setDemo(body.enabled);
     sendJson(res, 200, { ok: true, demo: office.isDemo() });
   };
@@ -336,6 +338,17 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
     if (isRemote(req) && isLocalOnlyPath(path)) {
       req.resume();
       sendJson(res, 403, { error: tr('rota só do próprio computador (hooks, plugins e o auxiliar do host)') });
+      return true;
+    }
+    if (path.startsWith('/api/multica/')) {
+      const host = req.headers.host;
+      const origin = req.headers.origin;
+      if (!deps.multica || office.isDemo()) sendJson(res, 404, { error: 'multica_unavailable' });
+      else if (isRemote(req) || !isLoopbackHost(host) || !isLoopbackAddress(req.socket.remoteAddress) ||
+        (origin !== undefined && origin !== 'http://' + host) || req.headers['sec-fetch-site'] === 'cross-site') {
+        sendJson(res, 403, { error: 'local_only' });
+      } else if (method !== 'GET') methodNotAllowed(res, 'GET');
+      else deps.multica.handle(req, res, path);
       return true;
     }
     if (path === '/api/world' || path.startsWith('/api/world/')) {

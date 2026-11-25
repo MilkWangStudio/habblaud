@@ -1014,6 +1014,8 @@ das contas (letra, e-mail, organização) são lidos no host pelo `docker:up` e 
 
 ## Desenvolvimento
 
+Este fork está adicionando escritórios opcionais do Multica. A primeira etapa oferece uma API local somente de leitura. Consulte o [plano e o teste ao vivo](docs/multica-integration.md).
+
 | Comando | O que faz |
 | --- | --- |
 | `npm run dev` | Servidor + Vite em http://localhost:4747, com recarga automática. |

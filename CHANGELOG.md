@@ -10,6 +10,10 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- API local de leitura do Multica neste fork para listar workspaces e acompanhar projetos, agentes, issues e execuções por SSE. [Plano e teste](docs/multica-integration.md).
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
